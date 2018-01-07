@@ -10,6 +10,7 @@ import java.util.regex.Pattern
 import javax.xml.parsers.DocumentBuilderFactory
 import javax.xml.transform.dom.DOMSource
 import com.sun.xml.internal.ws.addressing.EndpointReferenceUtil.transform
+import org.w3c.dom.Document
 import javax.xml.transform.OutputKeys
 import javax.xml.transform.stream.StreamResult
 import javax.xml.transform.Transformer
@@ -19,18 +20,14 @@ import javax.xml.transform.TransformerFactory
 
 fun main(args: Array<String>) {
     val invisionJson = getStringFromFile(s=File(args[0]).absoluteFile.toString() + "/index_pretty.json")
-
-    val moshi = Moshi.Builder().build()
-    val adapter = moshi.adapter(Invision::class.java)
-    val invision = adapter.fromJson(invisionJson)
+    val invision = Moshi.Builder().build().adapter(Invision::class.java).fromJson(invisionJson)
     invision?:return
 
     val path = File(args[1]).absoluteFile.toString()
     val buildGradle = getStringFromFile(s=path+"/app/build.gradle")
-    val appIdPattern = Pattern.compile("""applicationId\s*(["'`])([^"'`]*)\1""")
-    val appIdMatcher = appIdPattern.matcher(buildGradle)
-    if (appIdMatcher.find()) else return
-    val packageName = appIdMatcher.group(2)
+    val packageName = getPackageFromBuildGradle(buildGradle)
+    packageName?:return
+
     val invisionPackage = packageName + ".invision"
     val dbf = DocumentBuilderFactory.newInstance()
     val db = dbf.newDocumentBuilder()
@@ -47,7 +44,6 @@ fun main(args: Array<String>) {
         System.out.println(className)
         val screenClassName = ClassName(invisionPackage, className)
         val baseClassName = ClassName(invisionPackage, "BaseInvisionActivity")
-        val fileBuilder = FileSpec.builder(invisionPackage, className)
 
         val screenClass = TypeSpec.classBuilder(className)
                 .superclass(baseClassName)
@@ -81,35 +77,25 @@ fun main(args: Array<String>) {
             newActivity.setAttribute("android:name", ".invision."+className)
             application.appendChild(newActivity)
         }
-        val ds = DOMSource(manifest)
-        val transformerFactory = TransformerFactory.newInstance()
-        val transformer = transformerFactory.newTransformer()
-        transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-        transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4");
-        val result = StreamResult(path + "/app/src/main/NewAndroidManifest.xml")
-        transformer.transform(ds, result)
+        writeNewManifest(manifest, path)
     }
-/*
-    val greeterClass = ClassName("", args[0])
-    val file = FileSpec.builder("", "HelloWorld")
-            .addType(TypeSpec.classBuilder(args[0])
-                    .primaryConstructor(FunSpec.constructorBuilder()
-                            .addParameter("name", String::class)
-                            .build())
-                    .addProperty(PropertySpec.builder("name", String::class)
-                            .initializer("name")
-                            .build())
-                    .addFunction(FunSpec.builder("greet")
-                            .addStatement("println(%S)", "Hello, \$name")
-                            .build())
-                    .build())
-            .addFunction(FunSpec.builder("main")
-                    .addParameter("args", String::class, KModifier.VARARG)
-                    .addStatement("%T(args[0]).greet()", greeterClass)
-                    .build())
-            .build()
-*/
-    println("Hello, old gradle file!")
+}
+
+fun  getPackageFromBuildGradle(buildGradle: String): String? {
+    val appIdPattern = Pattern.compile("""applicationId\s*(["'`])([^"'`]*)\1""")
+    val appIdMatcher = appIdPattern.matcher(buildGradle)
+    if (appIdMatcher.find()) else return null
+    return appIdMatcher.group(2)
+}
+
+private fun writeNewManifest(manifest: Document?, path: String) {
+    val ds = DOMSource(manifest)
+    val transformerFactory = TransformerFactory.newInstance()
+    val transformer = transformerFactory.newTransformer()
+    transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+    transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4");
+    val result = StreamResult(path + "/app/src/main/NewAndroidManifest.xml")
+    transformer.transform(ds, result)
 }
 
 fun  getStringFromFile(s: String): String {
