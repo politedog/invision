@@ -90,7 +90,7 @@ fun main(args: Array<String>) {
                 .build()
         val fileSpec = FileSpec.builder(invisionPackage, className)
                 .addType(screenClass)
-                .addStaticImport(packageName, "R")
+                .addStaticImport(packageName?:"", "R")
                 .addStaticImport("android.content", "Intent")
                 .build()
         val output = File(path + "/app/src/main/java/")
