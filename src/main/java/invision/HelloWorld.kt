@@ -1,6 +1,5 @@
 package invision
 
-import com.squareup.kotlinpoet.*
 import com.squareup.moshi.Moshi
 import java.io.File
 import java.util.regex.Pattern
@@ -15,6 +14,7 @@ import javax.xml.transform.TransformerFactory
 
 fun main(args: Array<String>) {
     if (!validateArgs(args)) { help(); return }
+
     val invisionPath = File(args[0]).absoluteFile.toString()
     val invisionJson = getStringFromFile(s=invisionPath + "/index_pretty.json")
     val invision = Moshi.Builder().build().adapter(Invision::class.java).fromJson(invisionJson)
@@ -23,8 +23,7 @@ fun main(args: Array<String>) {
     val path = File(args[1]).absoluteFile.toString()
     val buildGradle = getStringFromFile(s=path+"/app/build.gradle")
     val packageName = getPackageFromBuildGradle(buildGradle)
-    if (packageName.isNullOrEmpty()) { help(); return }
-    val invisionPackage = packageName + ".invision"
+    if (packageName == null || packageName.isEmpty()) { help(); return }
 
     val dbf = DocumentBuilderFactory.newInstance()
     val db = dbf.newDocumentBuilder()
@@ -40,66 +39,32 @@ fun main(args: Array<String>) {
         System.out.println("Added ${className}, map has ${screenMap.size} entries")
     }
     invision.screens.forEach { screen ->
-        val screenId = screen.id
-        val className = screenMap.get(screenId)
-        if (className == null) {
-            System.out.println("Failed to find ${screen.name} in class map")
-            return
-        } else {
-            System.out.println("Preparing screen ${screen.name}")
-        }
-        val viewClassName = ClassName("android.widget", "View")
-        val bundleClassName = ClassName("android.os", "Bundle")
-        val imageViewClassName = ClassName("android.widget", "ImageView")
-        System.out.println(className)
-        val screenClassName = ClassName(invisionPackage, className)
-        val baseClassName = ClassName(invisionPackage, "BaseInvisionActivity")
-        val hotspotClassName = ClassName(invisionPackage, "Array<Hotspot>")
-        var hotspotInit = "arrayOf("
-        var skipFirst = true
-        invision.hotspots.forEach { spot ->
-            if (spot.screenID == screen.id) {
-                if (screenMap.get(spot.targetScreenID) != null) {
-                    if (skipFirst) skipFirst = false else hotspotInit += ",\n"
-                    hotspotInit += "Hotspot(x=${1.0 * spot.x / screen.width}, y=${1.0 * spot.y / screen.height}, height=${1.0 * spot.height / screen.height}, width=${1.0 * spot.width / screen.width}, target=${screenMap.get(spot.targetScreenID)}::class.java)"
-                }
-            }
-        }
-        hotspotInit += ");"
-
-        val screenClass = TypeSpec.classBuilder(className)
-                .superclass(baseClassName)
-                .addProperty(PropertySpec.builder("hotspots", hotspotClassName).initializer(hotspotInit).build())
-                .addFunction(FunSpec.builder("onCreate")
-                        .addParameter("savedInstanceState", bundleClassName.asNullable())
-                        .addModifiers(KModifier.OVERRIDE)
-                        .addStatement("super.onCreate(savedInstanceState)", "savedInstanceState")
-                        .addStatement("%L = %L", "bgResId", "R.drawable.inv${screen.id}")
-                        .beginControlFlow("%L.setOnTouchListener", "wire")
-                        .addStatement("view, motionEvent -> ")
-                        .beginControlFlow("%L.forEach","hotspots")
-                        .beginControlFlow("if(it.contains(view, motionEvent))")
-                        .addStatement("val i = Intent(this, it.target)")
-                        .addStatement("startActivity(i)")
-                        .addStatement("true")
-                        .endControlFlow()
-                        .endControlFlow()
-                        .addStatement("false")
-                        .endControlFlow()
-                        .build())
-                .build()
-        val fileSpec = FileSpec.builder(invisionPackage, className)
-                .addType(screenClass)
-                .addStaticImport(packageName?:"", "R")
-                .addStaticImport("android.content", "Intent")
-                .build()
+        val className = screenMap.get(screen.id)?:""
+        val builder = ScreenClassBuilder(packageName, invision)
+        builder.classMap = screenMap
+        builder.screen = screen
         val output = File(path + "/app/src/main/java/")
-        fileSpec.writeTo(output)
+        val fileSpec = builder.build()
+        if (fileSpec == null) {
+            System.out.println("Failed to create class ${className}")
+        } else {
+            fileSpec.writeTo(output)
+        }
         if (!(0 .. activities.length-1).any {
             activities.item(it).attributes.getNamedItem("android:name").nodeValue.contains(className)?:false
         }) {
             val newActivity = manifest.createElement("activity")
             newActivity.setAttribute("android:name", ".invision."+className)
+            if (screen.id == invision.project.homeScreenID) {
+                val intentFilter = manifest.createElement("intent-filter")
+                val action = manifest.createElement("action")
+                action.setAttribute("android:name", "android.intent.action.MAIN")
+                val category = manifest.createElement("category")
+                category.setAttribute("android:name", "android.intent.category.LAUNCHER")
+                intentFilter.appendChild(action)
+                intentFilter.appendChild(category)
+                newActivity.appendChild(intentFilter)
+            }
             application.appendChild(newActivity)
         }
         Files.copy(File("${invisionPath}/${screen.imageUrl}").toPath(), File("${path}/app/src/main/res/drawable/inv${screen.id}.png").toPath(), StandardCopyOption.REPLACE_EXISTING)
@@ -165,7 +130,7 @@ data class Invision (val hotspots: Array<Hotspot>, val project: Project, val scr
 
 data class Hotspot (val height: Int, val width: Int, val x: Int, val y: Int, val screenID: Int, val targetScreenID: Int)
 
-data class Project (val homeScreenId: Int)
+data class Project (val homeScreenID: Int)
 
 data class Screen (val imageUrl: String, val height: Int, val width: Int, val id: Int, val name: String)
 
