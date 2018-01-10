@@ -10,26 +10,35 @@ class ScreenClassBuilder (val packageName: String, val invision: Invision) {
     val invisionPackage = packageName + ".invision"
     val baseClassName = ClassName(invisionPackage, "BaseInvisionActivity")
     var screen: Screen? = null
-    var className: String? = null
-    var classMap: HashMap<Int, String>? = null
+    var classMap: ClassMap? = null
+
+    fun setScreen(screen: Screen) : ScreenClassBuilder {
+        this.screen = screen
+        return this
+    }
+
+    fun setClassMap(classMap: invision.ClassMap) : ScreenClassBuilder {
+        this.classMap = classMap
+        return this
+    }
 
     fun build() : FileSpec? {
         val screen = screen?:return null
         val classMap = classMap?:return null
-        val className = classMap.get(screen.id)
-        if (className == null) {
+        val className = classMap.getName(screen.id)
+        if (className == "") {
             System.out.println("${screen.id} not found in class map")
             return null
         }
-        System.out.println("Preparing screen ${screen?.name}")
+        System.out.println("Preparing screen ${screen.name}")
         val hotspotClassName = ClassName(invisionPackage, "Array<Hotspot>")
         var hotspotInit = "arrayOf("
         var skipFirst = true
         invision.hotspots.forEach { spot ->
-            if (spot.screenID == screen?.id) {
-                if (classMap?.get(spot.targetScreenID) != null) {
+            if (spot.screenID == screen.id) {
+                if (classMap.get(spot.targetScreenID) != null) {
                     if (skipFirst) skipFirst = false else hotspotInit += ",\n"
-                    hotspotInit += "Hotspot(x=${1.0 * spot.x / screen.width}, y=${1.0 * spot.y / screen.height}, height=${1.0 * spot.height / screen.height}, width=${1.0 * spot.width / screen.width}, target=${classMap.get(spot.targetScreenID)}::class.java)"
+                    hotspotInit += "Hotspot(x=${1.0 * spot.x / screen.width}, y=${1.0 * spot.y / screen.height}, height=${1.0 * spot.height / screen.height}, width=${1.0 * spot.width / screen.width}, target=${classMap.getName(spot.targetScreenID)}::class.java)"
                 }
             }
         }
