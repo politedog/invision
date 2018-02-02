@@ -34,11 +34,14 @@ class ScreenClassBuilder (val packageName: String, val invision: Invision) {
         val hotspotClassName = ClassName(invisionPackage, "Array<Hotspot>")
         var hotspotInit = "arrayOf("
         var skipFirst = true
+        val importSet = mutableSetOf<ClassMapping>()
         invision.hotspots.forEach { spot ->
             if (spot.screenID == screen.id) {
-                if (classMap.get(spot.targetScreenID) != null) {
+                val classMapping = classMap.get(spot.targetScreenID)
+                if (classMapping != null) {
                     if (skipFirst) skipFirst = false else hotspotInit += ",\n"
                     hotspotInit += "Hotspot(x=${1.0 * spot.x / screen.width}, y=${1.0 * spot.y / screen.height}, height=${1.0 * spot.height / screen.height}, width=${1.0 * spot.width / screen.width}, target=${classMap.getName(spot.targetScreenID)}::class.java)"
+                    importSet.add(classMapping)
                 }
             }
         }
@@ -69,8 +72,13 @@ class ScreenClassBuilder (val packageName: String, val invision: Invision) {
                 .addType(screenClass)
                 .addStaticImport(packageName?:"", "R")
                 .addStaticImport("android.content", "Intent")
-                .build()
-        return fileSpec
+        importSet.forEach {
+            if (!it.packageName.isNullOrEmpty()) {
+                fileSpec.addStaticImport((packageName ?: "") + it.packageName, it.name)
+            }
+        }
+
+        return fileSpec.build()
     }
 
 }
