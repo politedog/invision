@@ -17,7 +17,7 @@ class ScreenClassBuilder (val packageName: String, val invision: Invision) {
         return this
     }
 
-    fun setClassMap(classMap: invision.ClassMap) : ScreenClassBuilder {
+    fun setClassMap(classMap: ClassMap) : ScreenClassBuilder {
         this.classMap = classMap
         return this
     }
