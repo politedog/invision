@@ -47,9 +47,19 @@ class ScreenClassBuilder (val packageName: String, val invision: Invision) {
         }
         hotspotInit += ");"
 
+        val contextClassName = ClassName("android.content", "Context")
+        val intentClassName = ClassName("android.content", "Intent")
+        val companion = TypeSpec.companionObjectBuilder()
+                .addFunction(FunSpec.builder("newIntent")
+                        .addParameter("context", contextClassName)
+                        .returns(intentClassName)
+                        .addStatement("return Intent(context, %L::class.java)", className)
+                        .build())
+                .build()
         val screenClass = TypeSpec.classBuilder(className)
                 .superclass(baseClassName)
                 .addProperty(PropertySpec.builder("hotspots", hotspotClassName).initializer(hotspotInit).build())
+                .addType(companion)
                 .addFunction(FunSpec.builder("onCreate")
                         .addParameter("savedInstanceState", bundleClassName.asNullable())
                         .addModifiers(KModifier.OVERRIDE)
@@ -68,10 +78,10 @@ class ScreenClassBuilder (val packageName: String, val invision: Invision) {
                         .endControlFlow()
                         .build())
                 .build()
+
         val fileSpec = FileSpec.builder(invisionPackage, className)
                 .addType(screenClass)
                 .addStaticImport(packageName?:"", "R")
-                .addStaticImport("android.content", "Intent")
         importSet.forEach {
             if (!it.packageName.isNullOrEmpty()) {
                 fileSpec.addStaticImport((packageName ?: "") + it.packageName, it.name)
