@@ -92,6 +92,8 @@ fun writeFixedFiles(path: String, packageName: String) {
 fun writeToFile(fileName: String, text: String) {
     val theFile = File(fileName)
     if (!theFile.exists()) {
+        theFile.parentFile.mkdirs()
+        theFile.createNewFile()
         theFile.writeText(text)
     }
 }

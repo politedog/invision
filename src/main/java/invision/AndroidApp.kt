@@ -41,14 +41,13 @@ class AndroidApp(val path: String) {
         return activities.item(activityIdx)
     }
 
-    fun generateClassMap(invision: Invision) : Boolean{
+    fun generateClassMap(invision: Invision) : Boolean {
         val moshi = Moshi.Builder().build()
         val mapFn = path + "/classmap.json"
         val mapFile = File(mapFn)
-        if (mapFile.exists()) {
+        val existingMapFile = mapFile.exists()
+        if (existingMapFile) {
             classMap = moshi.adapter(ClassMap::class.java).fromJson(mapFn.getStringFromFile())?:classMap
-        } else {
-            return false
         }
         invision.screens.forEach {
             val classMapping = classMap.get(it.id)
@@ -70,6 +69,6 @@ class AndroidApp(val path: String) {
             }
         }
         mapFile.writeText(moshi.adapter(ClassMap::class.java).indent("  ").toJson(classMap))
-        return true
+        return existingMapFile
     }
 }
