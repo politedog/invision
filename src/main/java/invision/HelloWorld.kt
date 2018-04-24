@@ -72,7 +72,9 @@ fun main(args: Array<String>) {
                 fileSpec.writeTo(output)
             }
 
-            Files.copy(File("${invisionPath}/${screen.imageUrl}").toPath(), File("${path}/app/src/main/res/drawable/inv${screen.id}.png").toPath(), StandardCopyOption.REPLACE_EXISTING)
+            val fileSuffix = screen.imageUrl.substring(screen.imageUrl.lastIndexOf('.'), screen.imageUrl.length)
+
+            Files.copy(File("${invisionPath}/${screen.imageUrl}").toPath(), File("${path}/app/src/main/res/drawable/inv${screen.id}${fileSuffix}").toPath(), StandardCopyOption.REPLACE_EXISTING)
         }
     }
     writeNewManifest(app.manifest, path)
