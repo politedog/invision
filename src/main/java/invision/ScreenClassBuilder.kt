@@ -52,6 +52,7 @@ class ScreenClassBuilder (val packageName: String, val invision: Invision) {
         val companion = TypeSpec.companionObjectBuilder()
                 .addFunction(FunSpec.builder("newIntent")
                         .addParameter("context", contextClassName)
+                        .addParameter(ParameterSpec.builder("dummy", Any::class.asTypeName(), KModifier.VARARG).build())
                         .returns(intentClassName)
                         .addStatement("return Intent(context, %L::class.java)", className)
                         .build())
