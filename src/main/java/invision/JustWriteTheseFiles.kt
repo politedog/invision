@@ -9,6 +9,7 @@ import android.graphics.Point
 import android.os.Bundle
 import android.view.View
 import android.widget.ImageView
+import android.widget.Toast
 import PACKAGE.R
 
 
@@ -30,6 +31,7 @@ abstract class BaseInvisionActivity : Activity() {
         val scroll = wire.parent as View
         val sbm = Bitmap.createScaledBitmap(bm, point.x,( 1.0 * point.x / bm.width * bm.height).toInt(), false)
         wire.setImageBitmap(sbm)
+        Toast.makeText(this, this.localClassName, Toast.LENGTH_SHORT).show()
     }
 
     override fun onStop() {
